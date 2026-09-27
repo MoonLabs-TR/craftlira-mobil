@@ -31,3 +31,7 @@ android/.gradle/
 android/local.properties
 android/captures/
 *.apk
+scripts/*.jar
+scripts/*.apk
+release-apk/
+build_craftlira/

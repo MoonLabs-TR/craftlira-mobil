@@ -16,8 +16,8 @@ jobs:
       - name: Depoyu Klonla
         uses: actions/checkout@v4
 
-      - name: Java 17 Kurulumu
-        uses: actions/setup-java@v4
+      - name: Java 21 Kurulumu
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '21'

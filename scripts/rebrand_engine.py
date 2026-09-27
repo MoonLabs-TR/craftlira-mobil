@@ -25,7 +25,7 @@ APKTOOL_URL = "https://github.com/iBotPeaches/Apktool/releases/download/v2.10.0/
 UBER_SIGNER_URL = "https://github.com/patrickfav/uber-apk-signer/releases/download/v1.3.0/uber-apk-signer-1.3.0.jar"
 BASE_ENGINE_URL = "https://github.com/TeamPojavLauncher/PojavLauncher/releases/download/pojav-legacy/Pojavlauncher-release.apk"
 
-MASCOT_PATH = BASE_DIR / "public" / "assets" / "mascot.png"
+MASCOT_PATH = BASE_DIR / "public" / "assets" / "mascot-transparent.png"
 
 def download_file(url: str, dest: Path, desc: str):
     if dest.exists() and dest.stat().st_size > 10000:
@@ -118,7 +118,7 @@ def main():
     # 6. Recompile (Apktool build)
     unaligned_apk = BUILD_DIR / "CraftLira-unaligned.apk"
     print("[+] Tek parça CraftLira APK derleniyor...")
-    cmd_build = ["java", "-jar", str(APKTOOL_JAR), "b", str(decompiled_dir), "-o", str(unaligned_apk)]
+    cmd_build = ["java", "-jar", str(APKTOOL_JAR), "b", str(decompiled_dir), "--use-aapt2", "-o", str(unaligned_apk)]
     subprocess.run(cmd_build, check=True)
 
     # 7. Zipalign & Sign
@@ -128,8 +128,7 @@ def main():
     cmd_sign = [
         "java", "-jar", str(UBER_SIGNER_JAR),
         "-a", str(unaligned_apk),
-        "--out", str(RELEASE_DIR),
-        "--overwrite"
+        "--out", str(RELEASE_DIR)
     ]
     subprocess.run(cmd_sign, check=True)
 
@@ -138,11 +137,9 @@ def main():
     final_apk = RELEASE_DIR / "CraftLira.apk"
     
     for candidate in signed_candidates:
-        if "aligned-debugSigned" in candidate.name or "CraftLira" in candidate.name:
-            if candidate != final_apk:
-                if final_apk.exists():
-                    final_apk.unlink()
-                candidate.rename(final_apk)
+        if "aligned-debugSigned" in candidate.name or "unaligned" not in candidate.name:
+            if candidate.resolve() != final_apk.resolve():
+                shutil.copy2(candidate, final_apk)
             break
 
     print("=" * 60)
