@@ -123,24 +123,26 @@ def main():
 
     # 7. Zipalign & Sign
     print("[+] APK imzalanıyor ve optimize ediliyor (Uber Apk Signer)...")
-    RELEASE_DIR.mkdir(parents=True, exist_ok=True)
+    signed_output_dir = BUILD_DIR / "signed_output"
+    if signed_output_dir.exists():
+        shutil.rmtree(signed_output_dir)
+    signed_output_dir.mkdir(parents=True, exist_ok=True)
     
     cmd_sign = [
         "java", "-jar", str(UBER_SIGNER_JAR),
         "-a", str(unaligned_apk),
-        "--out", str(RELEASE_DIR)
+        "--out", str(signed_output_dir)
     ]
     subprocess.run(cmd_sign, check=True)
 
-    # İmzalanmış APK'yı standart ada getir
-    signed_candidates = list(RELEASE_DIR.glob("*.apk"))
+    # İmzalanmış tek parça oyun APK'sını release-apk/CraftLira.apk olarak kopyala
+    signed_apks = list(signed_output_dir.glob("*.apk"))
+    if not signed_apks:
+        raise FileNotFoundError("Uber Apk Signer imzalanmış APK üretemedi!")
+
+    RELEASE_DIR.mkdir(parents=True, exist_ok=True)
     final_apk = RELEASE_DIR / "CraftLira.apk"
-    
-    for candidate in signed_candidates:
-        if "aligned-debugSigned" in candidate.name or "unaligned" not in candidate.name:
-            if candidate.resolve() != final_apk.resolve():
-                shutil.copy2(candidate, final_apk)
-            break
+    shutil.copy2(signed_apks[0], final_apk)
 
     print("=" * 60)
     print(f"[OK] Basariyla Tamamlandi! Tek Parca CraftLira APK Hazir:")

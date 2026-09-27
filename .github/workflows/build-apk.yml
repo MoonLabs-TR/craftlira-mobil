@@ -61,11 +61,16 @@ jobs:
         run: |
           python scripts/rebrand_engine.py
 
-      - name: CraftLira APK Dosyalarını Yayınla (Artifact)
+      - name: Tek Parça CraftLira Oyununu Yayınla (142 MB Standalone APK)
         uses: actions/upload-artifact@v4
         with:
-          name: CraftLira-Mobil-APK
-          path: |
-            release-apk/CraftLira.apk
-            release-apk/CraftLira-Mobil.apk
+          name: CraftLira-Tek-Parca-Oyun-APK
+          path: release-apk/CraftLira.apk
+          retention-days: 30
+
+      - name: CraftLira Asistan Uygulamasını Yayınla (5 MB Dashboard APK)
+        uses: actions/upload-artifact@v4
+        with:
+          name: CraftLira-Asistan-APK
+          path: release-apk/CraftLira-Mobil.apk
           retention-days: 30
