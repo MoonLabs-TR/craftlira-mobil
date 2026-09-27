@@ -9,7 +9,8 @@ import {
   Save,
   Check,
   UserCheck,
-  Gamepad2
+  Gamepad2,
+  RefreshCw
 } from 'lucide-react';
 import { sound } from '../utils/audio';
 
@@ -28,6 +29,7 @@ export default function AyarlarView({
   setTexturePack,
   autoConnect = true,
   setAutoConnect,
+  onCheckUpdates,
   showToast
 }) {
   const [inputName, setInputName] = useState(username || '');
@@ -418,6 +420,40 @@ export default function AyarlarView({
               <option value="pvp-boost">Ultra PvP FPS Boost (Hafif)</option>
             </select>
           </div>
+        </div>
+      </div>
+
+      {/* App Version & Update Checker Card */}
+      <div className="launcher-card" style={{ padding: '12px 14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>CraftLira Mobil Sürümü</div>
+            <div style={{ fontSize: 10.5, color: '#10b981', display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+              <span>v1.0.0 (En Son Sürüm)</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onCheckUpdates}
+            style={{
+              padding: '7px 12px',
+              borderRadius: 8,
+              background: '#1c202d',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              color: '#fbbf24',
+              fontSize: 11,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              cursor: 'pointer'
+            }}
+          >
+            <RefreshCw size={12} />
+            <span>Güncellemeleri Denetle</span>
+          </button>
         </div>
       </div>
 

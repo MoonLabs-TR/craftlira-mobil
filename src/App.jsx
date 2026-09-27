@@ -12,10 +12,12 @@ import LaunchModal from './components/LaunchModal';
 import NotificationsModal from './components/NotificationsModal';
 import StoreRedirectModal from './components/StoreRedirectModal';
 import OnboardingModal from './components/OnboardingModal';
+import UpdateModal from './components/UpdateModal';
 import Toast from './components/Toast';
 import { Wifi, BatteryCharging } from 'lucide-react';
 import { sound } from './utils/audio';
 import { fetchServerStatus } from './utils/serverStatus';
+import { checkForAppUpdates, CURRENT_VERSION } from './utils/versionCheck';
 
 export default function App() {
   // Navigation
@@ -52,6 +54,10 @@ export default function App() {
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
   
+  // In-App Update Modal
+  const [updateInfo, setUpdateInfo] = useState(null);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+
   // Mascot Onboarding Tutorial (Shows on first launch)
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(() => {
     return !localStorage.getItem('craftlira_tutorial_seen');
@@ -136,6 +142,34 @@ export default function App() {
     handleGoToSettings();
   };
 
+  // Automatic in-app update check on startup
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      checkForAppUpdates().then((res) => {
+        if (res && res.updateAvailable) {
+          setUpdateInfo(res);
+          setIsUpdateModalOpen(true);
+        }
+      });
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Manual update check from Settings view
+  const handleManualCheckUpdates = async () => {
+    sound.playTap();
+    showToast("Güncellemeler denetleniyor...");
+    const res = await checkForAppUpdates();
+    if (res && res.updateAvailable) {
+      setUpdateInfo(res);
+      setIsUpdateModalOpen(true);
+    } else {
+      sound.playSuccess();
+      showToast(`Uygulamanız güncel! (v${CURRENT_VERSION})`);
+    }
+  };
+
   return (
     <div className="launcher-container">
       {/* Mobile Application Container */}
@@ -211,6 +245,7 @@ export default function App() {
               setTexturePack={setTexturePack}
               autoConnect={autoConnect}
               setAutoConnect={setAutoConnect}
+              onCheckUpdates={handleManualCheckUpdates}
               showToast={showToast}
             />
           )}
@@ -230,6 +265,13 @@ export default function App() {
           username={username || 'Oyuncu'}
           ram={ram}
           autoConnect={autoConnect}
+        />
+
+        {/* In-App Update Modal */}
+        <UpdateModal
+          isOpen={isUpdateModalOpen}
+          onClose={() => setIsUpdateModalOpen(false)}
+          updateInfo={updateInfo}
         />
 
         {/* Notifications Slide-over Modal */}
