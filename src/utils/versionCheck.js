@@ -25,7 +25,7 @@ export function compareVersions(v1, v2) {
 /**
  * Uzak sunucudan / GitHub'dan en güncel sürümü sorgular
  */
-export async function checkForAppUpdates(repoPath = 'craftlira/craftlira-mobil') {
+export async function checkForAppUpdates(repoPath = 'MoonLabs-TR/craftlira-mobil') {
   try {
     // 1. GitHub Releases API üzerinden en son yayınlanan sürümü sorgula
     const res = await fetch(`https://api.github.com/repos/${repoPath}/releases/latest`, {
