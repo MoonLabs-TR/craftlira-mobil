@@ -1,0 +1,12 @@
+{
+  "appId": "com.craftlira.launcher",
+  "appName": "CraftLira Mobil",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "backgroundColor": "#0d0f14",
+    "allowMixedContent": true
+  }
+}

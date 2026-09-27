@@ -1,0 +1,61 @@
+name: CraftLira Mobil APK Derleyici
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: # GitHub arayüzünden tek tıkla elle tetikleme imkanı
+
+jobs:
+  build-apk:
+    name: CraftLira Mobil APK Üret
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Depoyu Klonla
+        uses: actions/checkout@v4
+
+      - name: Java 17 Kurulumu
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Node.js Kurulumu
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Android SDK Kurulumu
+        uses: android-actions/setup-android@v3
+
+      - name: Proje Bağımlılıklarını Yükle
+        run: npm install
+
+      - name: CraftLira Web Arayüzünü Derle
+        run: npm run build
+
+      - name: Capacitor Android Senkronizasyonu
+        run: npx cap sync android
+
+      - name: Gradle İzinlerini Tanımla
+        run: chmod +x android/gradlew
+
+      - name: Android APK Derle (Gradle)
+        run: |
+          cd android
+          ./gradlew assembleDebug --stacktrace
+
+      - name: APK Dosyasını İsimlendir
+        run: |
+          mkdir -p release-apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk release-apk/CraftLira-Mobil.apk
+
+      - name: CraftLira-Mobil.apk Dosyasını Yayınla (Artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: CraftLira-Mobil-APK
+          path: release-apk/CraftLira-Mobil.apk
+          retention-days: 30

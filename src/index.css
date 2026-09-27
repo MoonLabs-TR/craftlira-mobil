@@ -1,0 +1,124 @@
+:root {
+  /* Natural Dark Slate & Obsidian Foundation */
+  --bg-deep: #0b0d11;
+  --bg-surface: #11141a;
+  --bg-card: #141722;
+  --bg-card-subtle: #1a1e28;
+  --bg-card-hover: #1f2330;
+  --bg-overlay: rgba(11, 13, 17, 0.85);
+
+  /* CraftLira Warm Amber Gold */
+  --gold-300: #fcd34d;
+  --gold-400: #fbbf24;
+  --gold-500: #f59e0b;
+  --gold-600: #d97706;
+  --gold-700: #b45309;
+  --gold-glow: rgba(245, 158, 11, 0.2);
+  --gold-subtle: rgba(245, 158, 11, 0.1);
+  --gold-border: rgba(245, 158, 11, 0.25);
+  --gold-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+
+  /* Neutrals */
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-gold: #fbbf24;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-card: rgba(255, 255, 255, 0.07);
+
+  /* Status */
+  --color-online: #10b981;
+  --color-danger: #ef4444;
+
+  /* Typography */
+  --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.5);
+  --shadow-gold: 0 4px 18px rgba(245, 158, 11, 0.25);
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-full: 9999px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: #07080b;
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-deep);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.25);
+  border-radius: 4px;
+}
+
+button {
+  font-family: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+  outline: none;
+}
+
+input, select, textarea {
+  font-family: inherit;
+}
+
+.gold-gradient-text {
+  background: var(--gold-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Pulsing Badge */
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 0.4; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+.pulsing-indicator {
+  position: relative;
+}
+.pulsing-indicator::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  background: inherit;
+  opacity: 0.5;
+  animation: pulse-ring 2s infinite ease-in-out;
+}
+
+/* Floating animation for mascot */
+@keyframes float-subtle {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+
+.animate-float {
+  animation: float-subtle 3.5s ease-in-out infinite;
+}
