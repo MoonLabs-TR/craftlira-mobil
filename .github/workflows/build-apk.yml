@@ -5,7 +5,7 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch: # GitHub arayüzünden tek tıkla elle tetikleme imkanı
+  workflow_dispatch:
 
 jobs:
   build-apk:
@@ -28,9 +28,6 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Android SDK Kurulumu
-        uses: android-actions/setup-android@v3
-
       - name: Proje Bağımlılıklarını Yükle
         run: npm install
 
@@ -47,6 +44,8 @@ jobs:
         run: |
           cd android
           ./gradlew assembleDebug --stacktrace
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
 
       - name: APK Dosyasını İsimlendir
         run: |
