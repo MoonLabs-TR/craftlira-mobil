@@ -196,7 +196,7 @@ export default function EngineInstallerModal({
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <ShieldCheck size={16} color="#38bdf8" />
-              <span><b>Entegrasyon:</b> play.craftlira.com Doğrudan Bağlantı</span>
+              <span><b>Entegrasyon:</b> oyna.craftlira.com Doğrudan Bağlantı</span>
             </div>
           </div>
 

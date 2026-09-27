@@ -192,7 +192,7 @@ public class CraftLiraEnginePlugin extends Plugin {
         PackageManager pm = context.getPackageManager();
 
         String username = call.getString("username", "Oyuncu");
-        String host = call.getString("serverHost", "play.craftlira.com");
+        String host = call.getString("serverHost", "oyna.craftlira.com");
         int port = call.getInt("serverPort", 25565);
         int ram = call.getInt("ram", 4);
         boolean autoConnect = call.getBoolean("autoConnect", true);

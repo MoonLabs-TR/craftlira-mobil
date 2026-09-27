@@ -34,7 +34,7 @@ export default function LaunchModal({
     },
     { 
       title: "Towny Sunucusuna Bağlanılıyor...", 
-      desc: "play.craftlira.com dünyasına doğrudan giriş yapılıyor..." 
+      desc: "oyna.craftlira.com dünyasına doğrudan giriş yapılıyor..." 
     },
     { 
       title: "Oyun Başlatıldı!", 
@@ -212,7 +212,7 @@ export default function LaunchModal({
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <span style={{ color: '#94a3b8' }}>Bağlantı:</span>
-          <span style={{ fontWeight: 700, color: '#10b981' }}>play.craftlira.com (Oto-Giriş)</span>
+          <span style={{ fontWeight: 700, color: '#10b981' }}>oyna.craftlira.com (Oto-Giriş)</span>
         </div>
       </div>
 
@@ -258,7 +258,7 @@ export default function LaunchModal({
             }}
           >
             {copiedIp ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
-            <span>{copiedIp ? 'Sunucu IP Kopyalandı' : 'play.craftlira.com IP Kopyala'}</span>
+            <span>{copiedIp ? 'Sunucu IP Kopyalandı' : 'oyna.craftlira.com IP Kopyala'}</span>
           </button>
 
           {/* Close Modal Button */}

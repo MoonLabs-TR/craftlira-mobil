@@ -52,9 +52,20 @@ jobs:
           mkdir -p release-apk
           cp android/app/build/outputs/apk/debug/app-debug.apk release-apk/CraftLira-Mobil.apk
 
-      - name: CraftLira-Mobil.apk Dosyasını Yayınla (Artifact)
+      - name: Python Kurulumu
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Tek Parça CraftLira Oyun İstemcisini Derle (Rebrand Engine)
+        run: |
+          python scripts/rebrand_engine.py
+
+      - name: CraftLira APK Dosyalarını Yayınla (Artifact)
         uses: actions/upload-artifact@v4
         with:
           name: CraftLira-Mobil-APK
-          path: release-apk/CraftLira-Mobil.apk
+          path: |
+            release-apk/CraftLira.apk
+            release-apk/CraftLira-Mobil.apk
           retention-days: 30

@@ -26,13 +26,13 @@ export default function OynaView({
 }) {
   const [copied, setCopied] = useState(false);
 
-  const serverIP = "play.craftlira.com";
+  const serverIP = "oyna.craftlira.com";
 
   const handleCopyIP = () => {
     sound.playSuccess();
     navigator.clipboard.writeText(serverIP);
     setCopied(true);
-    showToast("Sunucu IP kopyalandı: play.craftlira.com");
+    showToast("Sunucu IP kopyalandı: oyna.craftlira.com");
     setTimeout(() => setCopied(false), 2200);
   };
 

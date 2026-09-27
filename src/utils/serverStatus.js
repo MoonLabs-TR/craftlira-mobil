@@ -1,7 +1,7 @@
-// Real live Minecraft server status fetcher for play.craftlira.com
+// Real live Minecraft server status fetcher for oyna.craftlira.com
 
 export async function fetchServerStatus() {
-  const host = 'play.craftlira.com';
+  const host = 'oyna.craftlira.com';
   
   try {
     const controller = new AbortController();

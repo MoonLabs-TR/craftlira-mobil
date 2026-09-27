@@ -189,7 +189,7 @@ export default function AyarlarView({
           <div>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>Hızlı Oto-Bağlan (QuickPlay)</div>
             <div style={{ fontSize: 10.5, color: '#94a3b8' }}>
-              Menüyü atlayıp doğrudan play.craftlira.com'a bağlanır
+              Menüyü atlayıp doğrudan oyna.craftlira.com'a bağlanır
             </div>
           </div>
           <button

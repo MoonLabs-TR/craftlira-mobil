@@ -7,7 +7,7 @@ export const CraftLiraEngine = registerPlugin('CraftLiraEngine');
 export const ENGINE_CONFIG = {
   packageName: 'net.kdt.pojavlaunch',
   targetVersion: '1.20.4',
-  serverHost: 'play.craftlira.com',
+  serverHost: 'oyna.craftlira.com',
   serverPort: 25565,
   engineName: 'CraftLira Dahili Oyun Çekirdeği (Java 1.20.4)',
   engineDownloadUrl: 'https://github.com/TeamPojavLauncher/PojavLauncher/releases/download/pojav-legacy/Pojavlauncher-release.apk'

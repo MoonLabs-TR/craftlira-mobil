@@ -4,7 +4,7 @@
  */
 
 export const LAUNCHER_CONFIG = {
-  serverHost: 'play.craftlira.com',
+  serverHost: 'oyna.craftlira.com',
   serverPort: 25565,
   targetVersion: '1.20.4',
   appPackage: 'com.craftlira.launcher'
