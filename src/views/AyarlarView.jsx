@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   User, 
-  Volume2, 
-  Vibrate, 
   Zap, 
   Cpu, 
   Moon,
@@ -10,7 +8,8 @@ import {
   Check,
   UserCheck,
   Gamepad2,
-  RefreshCw
+  RefreshCw,
+  Download
 } from 'lucide-react';
 import { sound } from '../utils/audio';
 
@@ -29,6 +28,8 @@ export default function AyarlarView({
   setTexturePack,
   autoConnect = true,
   setAutoConnect,
+  isEngineInstalled = false,
+  onRequestEngineInstall,
   onCheckUpdates,
   showToast
 }) {
@@ -420,6 +421,43 @@ export default function AyarlarView({
               <option value="pvp-boost">Ultra PvP FPS Boost (Hafif)</option>
             </select>
           </div>
+        </div>
+      </div>
+
+      {/* Engine Status & Installer Card */}
+      <div className="launcher-card" style={{ padding: '12px 14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>Oyun Motoru (Java 1.20.4)</div>
+            <div style={{ fontSize: 10.5, color: isEngineInstalled ? '#10b981' : '#f59e0b', display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: isEngineInstalled ? '#10b981' : '#f59e0b', display: 'inline-block' }} />
+              <span>{isEngineInstalled ? 'Kurulu ve Aktif' : 'Kurulu Değil'}</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              sound.playTap();
+              if (onRequestEngineInstall) onRequestEngineInstall();
+            }}
+            style={{
+              padding: '7px 12px',
+              borderRadius: 8,
+              background: '#1c202d',
+              border: isEngineInstalled ? '1px solid rgba(255, 255, 255, 0.12)' : '1px solid rgba(245, 158, 11, 0.4)',
+              color: isEngineInstalled ? '#cbd5e1' : '#fbbf24',
+              fontSize: 11,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              cursor: 'pointer'
+            }}
+          >
+            <Download size={12} />
+            <span>{isEngineInstalled ? 'Yeniden Kur / Güncelle' : 'Motoru Kur'}</span>
+          </button>
         </div>
       </div>
 

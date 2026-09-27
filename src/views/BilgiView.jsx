@@ -41,7 +41,7 @@ export default function BilgiView({ showToast }) {
   const faqs = [
     {
       q: 'Mobil uygulamadan oyuna nasıl giriş yapabilirim?',
-      a: 'Uygulama içinde Minecraft Java 1.20.4 motoru entegre olarak hazır gelir. Ayarlar sekmesinden adınızı kaydedip "TOWNY\'YE BAĞLAN" butonuna basmanız yeterlidir. Harici bir oyun veya hesap satın alımı gerekmez.'
+      a: 'Uygulama ana ekranındaki "OYUN MOTORUNU KUR" butonuna basarak CraftLira Java 1.20.4 motorunu tek dokunuşla indirebilirsiniz. Kurulum tamamlandıktan sonra oyuncu adınızı girip "TOWNY\'YE BAĞLAN" diyerek doğrudan oyuna katılabilirsiniz.'
     },
     {
       q: 'Nasıl kasaba kurabilirim?',

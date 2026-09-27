@@ -7,9 +7,9 @@ import {
   Castle, 
   Swords, 
   Coins, 
-  User, 
   Settings, 
-  RotateCw
+  RotateCw,
+  Download
 } from 'lucide-react';
 import { sound } from '../utils/audio';
 
@@ -19,6 +19,8 @@ export default function OynaView({
   onRefreshStatus,
   onLaunchGame,
   onGoToSettings,
+  isEngineInstalled = false,
+  onRequestEngineInstall,
   autoConnect = true,
   showToast
 }) {
@@ -35,6 +37,12 @@ export default function OynaView({
   };
 
   const handleConnect = () => {
+    if (!isEngineInstalled) {
+      sound.playTap();
+      if (onRequestEngineInstall) onRequestEngineInstall();
+      return;
+    }
+
     if (!username || username.trim().length < 3) {
       sound.playTap();
       showToast("Lütfen önce Ayarlar sekmesinden Minecraft kullanıcı adınızı belirleyin!");
@@ -274,14 +282,40 @@ export default function OynaView({
           id="main-launch-btn"
           className="btn-launch-primary"
           onClick={handleConnect}
+          style={{
+            background: isEngineInstalled 
+              ? 'var(--gold-gradient)' 
+              : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+          }}
         >
-          <Play size={18} fill="#0b0d12" />
-          <span>TOWNY'YE BAĞLAN</span>
+          {isEngineInstalled ? (
+            <>
+              <Play size={18} fill="#0b0d12" />
+              <span>TOWNY'YE BAĞLAN</span>
+            </>
+          ) : (
+            <>
+              <Download size={18} />
+              <span>OYUN MOTORUNU KUR (1.20.4)</span>
+            </>
+          )}
         </button>
 
         <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 10.5, color: '#94a3b8' }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
-          <span>Dahili CraftLira Motoru (1.20.4) • Doğrudan Giriş</span>
+          <span 
+            style={{ 
+              width: 6, 
+              height: 6, 
+              borderRadius: '50%', 
+              background: isEngineInstalled ? '#10b981' : '#f59e0b', 
+              display: 'inline-block' 
+            }} 
+          />
+          <span style={{ color: isEngineInstalled ? '#cbd5e1' : '#fbbf24', fontWeight: isEngineInstalled ? 400 : 700 }}>
+            {isEngineInstalled 
+              ? 'Dahili CraftLira Motoru (1.20.4) Hazır • Doğrudan Giriş' 
+              : 'Oyun Motoru Kurulu Değil • Dokun ve Tek Tıkla Kur'}
+          </span>
         </div>
       </div>
 

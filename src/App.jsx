@@ -13,11 +13,13 @@ import NotificationsModal from './components/NotificationsModal';
 import StoreRedirectModal from './components/StoreRedirectModal';
 import OnboardingModal from './components/OnboardingModal';
 import UpdateModal from './components/UpdateModal';
+import EngineInstallerModal from './components/EngineInstallerModal';
 import Toast from './components/Toast';
 import { Wifi, BatteryCharging } from 'lucide-react';
 import { sound } from './utils/audio';
 import { fetchServerStatus } from './utils/serverStatus';
 import { checkForAppUpdates, CURRENT_VERSION } from './utils/versionCheck';
+import { checkIsEngineInstalled } from './utils/engineInstaller';
 
 export default function App() {
   // Navigation
@@ -57,6 +59,19 @@ export default function App() {
   // In-App Update Modal
   const [updateInfo, setUpdateInfo] = useState(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+
+  // Engine Installer Modal & Status
+  const [isEngineInstalled, setIsEngineInstalled] = useState(false);
+  const [isEngineInstallerOpen, setIsEngineInstallerOpen] = useState(false);
+
+  const refreshEngineStatus = useCallback(async () => {
+    const installed = await checkIsEngineInstalled();
+    setIsEngineInstalled(installed);
+  }, []);
+
+  useEffect(() => {
+    refreshEngineStatus();
+  }, [refreshEngineStatus]);
 
   // Mascot Onboarding Tutorial (Shows on first launch)
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(() => {
@@ -209,6 +224,8 @@ export default function App() {
               onRefreshStatus={() => updateStatus(true)}
               onLaunchGame={handleLaunchGame}
               onGoToSettings={handleGoToSettings}
+              isEngineInstalled={isEngineInstalled}
+              onRequestEngineInstall={() => setIsEngineInstallerOpen(true)}
               autoConnect={autoConnect}
               showToast={showToast}
             />
@@ -245,6 +262,8 @@ export default function App() {
               setTexturePack={setTexturePack}
               autoConnect={autoConnect}
               setAutoConnect={setAutoConnect}
+              isEngineInstalled={isEngineInstalled}
+              onRequestEngineInstall={() => setIsEngineInstallerOpen(true)}
               onCheckUpdates={handleManualCheckUpdates}
               showToast={showToast}
             />
@@ -272,6 +291,20 @@ export default function App() {
           isOpen={isUpdateModalOpen}
           onClose={() => setIsUpdateModalOpen(false)}
           updateInfo={updateInfo}
+        />
+
+        {/* Engine Installer Modal */}
+        <EngineInstallerModal
+          isOpen={isEngineInstallerOpen}
+          onClose={() => setIsEngineInstallerOpen(false)}
+          onInstalledSuccess={() => {
+            refreshEngineStatus();
+            showToast("Oyun motoru başarıyla kuruldu!");
+          }}
+          onLaunchGame={() => {
+            setIsEngineInstallerOpen(false);
+            handleLaunchGame();
+          }}
         />
 
         {/* Notifications Slide-over Modal */}

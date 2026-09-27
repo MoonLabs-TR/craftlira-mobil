@@ -1,17 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Gamepad2, 
   RotateCw, 
   Copy, 
   Check, 
-  X,
-  Sparkles
+  X
 } from 'lucide-react';
 import { sound } from '../utils/audio';
-import { 
-  launchMinecraftClient, 
-  LAUNCHER_CONFIG 
-} from '../utils/minecraftLauncher';
+import { launchGameDirectly, ENGINE_CONFIG } from '../utils/engineInstaller';
 
 export default function LaunchModal({ 
   isOpen, 
@@ -27,7 +22,7 @@ export default function LaunchModal({
   const steps = [
     { 
       title: "Dahili CraftLira Motoru Hazırlanıyor...", 
-      desc: `Java ${LAUNCHER_CONFIG.targetVersion} oyun çekirdeği kontrol ediliyor` 
+      desc: `Java ${ENGINE_CONFIG.targetVersion} oyun çekirdeği kontrol ediliyor` 
     },
     { 
       title: "Oyuncu Profili & Bellek Tahsisi...", 
@@ -50,7 +45,7 @@ export default function LaunchModal({
   // Execute client trigger
   const triggerClientLaunch = () => {
     sound.playLaunch();
-    launchMinecraftClient({
+    launchGameDirectly({
       username: username || 'Oyuncu',
       ram,
       autoConnect
@@ -81,7 +76,7 @@ export default function LaunchModal({
 
   const handleCopyIp = () => {
     sound.playSuccess();
-    navigator.clipboard?.writeText(LAUNCHER_CONFIG.serverHost);
+    navigator.clipboard?.writeText(ENGINE_CONFIG.serverHost);
     setCopiedIp(true);
     setTimeout(() => setCopiedIp(false), 2000);
   };
