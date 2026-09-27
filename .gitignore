@@ -35,3 +35,5 @@ scripts/*.jar
 scripts/*.apk
 release-apk/
 build_craftlira/
+cache/
+test_compile/

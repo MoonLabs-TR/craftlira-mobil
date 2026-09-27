@@ -17,18 +17,21 @@ export const ENGINE_CONFIG = {
  * Motorun kurulu olup olmadığını denetler
  */
 export async function checkIsEngineInstalled() {
+  if (typeof window !== 'undefined' && (window.CraftLiraNative || window.CraftLiraBridge)) {
+    return true;
+  }
+
   if (Capacitor.isNativePlatform()) {
     try {
       const res = await CraftLiraEngine.isEngineInstalled();
-      return !!res?.installed;
+      if (res?.installed) return true;
     } catch (err) {
       console.warn('Native engine check error:', err);
     }
   }
 
-  // Tarayıcı / Web test ortamı için localStorage kontrolü
-  const mockInstalled = localStorage.getItem('craftlira_engine_mock_installed');
-  return mockInstalled === 'true';
+  // Dahili tek parça CraftLira APK'da motor her zaman hazırdır
+  return true;
 }
 
 /**
@@ -96,6 +99,26 @@ export async function launchGameDirectly({
   autoConnect = true
 }) {
   sound.playLaunch();
+
+  // 1. Dahili CraftLira Java motoru doğrudan köprüsü
+  if (typeof window !== 'undefined') {
+    if (window.CraftLiraNative?.launchTowny) {
+      try {
+        window.CraftLiraNative.launchTowny(username || 'Oyuncu', (Number(ram) || 4) * 1024);
+        return { success: true, method: 'craftlira-native' };
+      } catch (e) {
+        console.warn('CraftLiraNative call error:', e);
+      }
+    }
+    if (window.CraftLiraBridge?.launchGame) {
+      try {
+        window.CraftLiraBridge.launchGame(username || 'Oyuncu', ENGINE_CONFIG.serverHost, ENGINE_CONFIG.serverPort, Number(ram) || 4, !!autoConnect);
+        return { success: true, method: 'craftlira-bridge' };
+      } catch (e) {
+        console.warn('CraftLiraBridge call error:', e);
+      }
+    }
+  }
 
   if (Capacitor.isNativePlatform()) {
     try {

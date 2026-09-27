@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-apk:
-    name: CraftLira Mobil APK Üret
+    name: CraftLira Mobil APK Üret (Tek Parça 140MB)
     runs-on: ubuntu-latest
 
     steps:
@@ -22,35 +22,27 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
+      - name: Python 3.12 Kurulumu
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Node.js Kurulumu
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
 
-      - name: Proje Bağımlılıklarını Yükle
+      - name: Bağımlılıkları Yükle
         run: npm install
 
-      - name: CraftLira Web Arayüzünü Derle
-        run: npm run build
+      - name: Tek Parça CraftLira Mobil APK'sını Derle (React + Oyun Motoru)
+        run: python scripts/build_craftlira_client.py
 
-      - name: Capacitor Android Senkronizasyonu
-        run: npx cap sync android
-
-      - name: Gradle İzinlerini Tanımla
-        run: chmod +x android/gradlew
-
-      - name: Android APK Derle (Gradle)
+      - name: Üretilen APK Dosyasını Doğrula
         run: |
-          cd android
-          ./gradlew assembleDebug --stacktrace
-        env:
-          ANDROID_HOME: /usr/local/lib/android/sdk
-
-      - name: APK Dosyasını İsimlendir
-        run: |
-          mkdir -p release-apk
-          cp android/app/build/outputs/apk/debug/app-debug.apk release-apk/CraftLira-Mobil.apk
+          ls -la release-apk/
+          du -h release-apk/CraftLira-Mobil.apk
 
       - name: CraftLira-Mobil.apk Dosyasını Yayınla (Artifact)
         uses: actions/upload-artifact@v4

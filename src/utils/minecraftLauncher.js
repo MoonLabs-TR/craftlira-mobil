@@ -36,6 +36,16 @@ export function launchMinecraftClient({
 
   // 1. Dahili Android / Native Bridge kontrolü (APK içi C/Java köprüsü)
   if (typeof window !== 'undefined') {
+    if (window.CraftLiraNative?.launchTowny) {
+      try {
+        window.CraftLiraNative.launchTowny(username || 'Oyuncu', (Number(ram) || 4) * 1024);
+        onFeedback({ status: 'launched', method: 'craftlira-native' });
+        return { success: true, method: 'native-bridge' };
+      } catch (err) {
+        console.warn('CraftLiraNative launchTowny error:', err);
+      }
+    }
+
     if (window.CraftLiraBridge?.launchGame) {
       try {
         window.CraftLiraBridge.launchGame(username, host, port, ram, autoConnect);
