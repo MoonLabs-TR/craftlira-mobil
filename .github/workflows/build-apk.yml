@@ -33,16 +33,36 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: Bağımlılıkları Yükle
+      - name: Proje Bağımlılıklarını Yükle
         run: npm install
 
-      - name: Tek Parça CraftLira Mobil APK'sını Derle (React + Oyun Motoru)
+      - name: React Arayüzünü Derle
+        run: npm run build
+
+      - name: Derleme Araçlarını ve Oyun Motorunu İndir
+        run: |
+          mkdir -p cache
+          echo "[+] Araçlar indiriliyor..."
+          curl -L --retry 3 -o cache/apktool.jar https://github.com/iBotPeaches/Apktool/releases/download/v2.10.0/apktool_2.10.0.jar
+          curl -L --retry 3 -o cache/uber-apk-signer.jar https://github.com/patrickfav/uber-apk-signer/releases/download/v1.3.0/uber-apk-signer-1.3.0.jar
+          curl -L --retry 3 -o cache/r8.jar https://maven.google.com/com/android/tools/r8/8.2.42/r8-8.2.42.jar
+          curl -L --retry 3 -o cache/android.jar https://raw.githubusercontent.com/Sable/android-platforms/master/android-33/android.jar
+          curl -L --retry 3 -o cache/pojav.apk https://github.com/TeamPojavLauncher/PojavLauncher/releases/download/pojav-legacy/Pojavlauncher-release.apk
+          ls -lh cache/
+
+      - name: Tek Parça CraftLira Mobil APK'sını Derle
         run: python scripts/build_craftlira_client.py
 
       - name: Üretilen APK Dosyasını Doğrula
         run: |
           ls -la release-apk/
           du -h release-apk/CraftLira-Mobil.apk
+          FILESIZE=$(stat -c%s "release-apk/CraftLira-Mobil.apk")
+          if [ $FILESIZE -lt 100000000 ]; then
+            echo "Hata: APK boyutu 100MB'dan kucuk!"
+            exit 1
+          fi
+          echo "APK boyutu basariyla dogrulandi: $FILESIZE bayt (~$((FILESIZE / 1048576)) MB)"
 
       - name: CraftLira-Mobil.apk Dosyasını Yayınla (Artifact)
         uses: actions/upload-artifact@v4

@@ -37,12 +37,14 @@ BASE_ENGINE_URL = "https://github.com/TeamPojavLauncher/PojavLauncher/releases/d
 
 MASCOT_PATH = BASE_DIR / "public" / "assets" / "mascot-transparent.png"
 
-def download_if_needed(url: str, dest: Path, desc: str, min_size: int = 100000):
+def download_if_needed(url: str, dest: Path, desc: str, min_size: int = 500000):
     if dest.exists() and dest.stat().st_size > min_size:
         print(f"[*] {desc} zaten mevcut: {dest.name} ({dest.stat().st_size // 1024} KB)")
         return
     print(f"[+] {desc} indiriliyor: {url}")
     dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.exists():
+        dest.unlink()
     req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
     with urllib.request.urlopen(req) as resp, open(dest, 'wb') as out_file:
         shutil.copyfileobj(resp, out_file)
@@ -263,16 +265,22 @@ def main():
     download_if_needed(UBER_SIGNER_URL, UBER_SIGNER_JAR, "Uber Apk Signer")
     download_if_needed(R8_URL, R8_JAR, "R8/D8 Compiler")
     download_if_needed(ANDROID_JAR_URL, ANDROID_JAR, "Android Platform SDK Jar")
-    download_if_needed(BASE_ENGINE_URL, ENGINE_BASE_APK, "Temel Oyun Motoru (130 MB)")
+    download_if_needed(BASE_ENGINE_URL, ENGINE_BASE_APK, "Temel Oyun Motoru (130 MB)", min_size=50000000)
 
-    # 2. React Web Arayüzünü derle (npm run build)
-    print("[+] React arayüzü derleniyor (npm run build)...")
-    subprocess.run(['npm', 'run', 'build'], cwd=str(BASE_DIR), check=True, shell=True)
-
+    # 2. React Web Arayüzünü derle
     dist_dir = BASE_DIR / "dist"
     if not (dist_dir / "index.html").exists():
+        print("[+] React arayüzü derleniyor...")
+        if os.name == 'nt':
+            subprocess.run(["npm.cmd", "run", "build"], cwd=str(BASE_DIR), check=True)
+        else:
+            subprocess.run(["npm", "run", "build"], cwd=str(BASE_DIR), check=True)
+    else:
+        print(f"[*] React arayüzü zaten mevcut: {dist_dir}")
+
+    if not (dist_dir / "index.html").exists():
         raise FileNotFoundError("dist/index.html derlenemedi!")
-    print(f"[OK] React arayüzü derlendi: {dist_dir}")
+    print(f"[OK] React arayüzü hazır: {dist_dir}")
 
     # 3. Motor APK'sını decompile et (varsa cache/decompiled kullan veya yeniden çıkar)
     decompiled_dir = BUILD_DIR / "decompiled"
