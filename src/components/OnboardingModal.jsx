@@ -74,7 +74,7 @@ export default function OnboardingModal({ isOpen, onClose, onGoToSettings }) {
           }}
         >
           <img
-            src="/assets/mascot-transparent.png"
+            src="./assets/mascot-transparent.png"
             alt="CraftLira Fox Mascot"
             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
           />

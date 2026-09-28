@@ -65,11 +65,13 @@ def compile_main_activity(dest_smali_dir: Path):
     pojav_pkg = src_dir / "net" / "kdt" / "pojavlaunch"
     pojav_extra = pojav_pkg / "extra"
     pojav_prefs = pojav_pkg / "prefs"
+    pojav_utils = src_dir / "net" / "kdt" / "pojavlaunch" / "utils"
     craftlira_pkg = src_dir / "com" / "craftlira" / "launcher"
 
     pojav_pkg.mkdir(parents=True, exist_ok=True)
     pojav_extra.mkdir(parents=True, exist_ok=True)
     pojav_prefs.mkdir(parents=True, exist_ok=True)
+    pojav_utils.mkdir(parents=True, exist_ok=True)
     craftlira_pkg.mkdir(parents=True, exist_ok=True)
 
     # Stubs for compilation
@@ -78,7 +80,12 @@ def compile_main_activity(dest_smali_dir: Path):
         encoding='utf-8'
     )
     (pojav_pkg / "Tools.java").write_text(
-        'package net.kdt.pojavlaunch;\npublic class Tools { public static String DIR_ACCOUNT_NEW; }\n',
+        'package net.kdt.pojavlaunch;\npublic class Tools {\n'
+        '    public static String DIR_ACCOUNT_NEW;\n'
+        '    public static String DIR_GAME_HOME;\n'
+        '    public static void initStorageConstants(android.content.Context c) {}\n'
+        '    public static void initEarlyConstants(android.content.Context c) {}\n'
+        '}\n',
         encoding='utf-8'
     )
     (pojav_extra / "ExtraCore.java").write_text(
@@ -90,7 +97,16 @@ def compile_main_activity(dest_smali_dir: Path):
         encoding='utf-8'
     )
     (pojav_prefs / "LauncherPreferences.java").write_text(
-        'package net.kdt.pojavlaunch.prefs;\npublic class LauncherPreferences { public static android.content.SharedPreferences DEFAULT_PREF; }\n',
+        'package net.kdt.pojavlaunch.prefs;\npublic class LauncherPreferences {\n'
+        '    public static android.content.SharedPreferences DEFAULT_PREF;\n'
+        '    public static void loadPreferences(android.content.Context c) {}\n'
+        '}\n',
+        encoding='utf-8'
+    )
+    (pojav_utils / "LocaleUtils.java").write_text(
+        'package net.kdt.pojavlaunch.utils;\npublic class LocaleUtils {\n'
+        '    public static android.content.ContextWrapper setLocale(android.content.Context c) { return null; }\n'
+        '}\n',
         encoding='utf-8'
     )
 
@@ -103,6 +119,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.ViewGroup;
 import android.webkit.ConsoleMessage;
@@ -118,6 +135,7 @@ import net.kdt.pojavlaunch.Tools;
 import net.kdt.pojavlaunch.extra.ExtraConstants;
 import net.kdt.pojavlaunch.extra.ExtraCore;
 import net.kdt.pojavlaunch.prefs.LauncherPreferences;
+import net.kdt.pojavlaunch.utils.LocaleUtils;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.InputStream;
@@ -135,6 +153,13 @@ public class CraftLiraMainActivity extends Activity {
                 WebView.setDataDirectorySuffix("craftlira");
             } catch (Throwable ignored) {}
         }
+
+        // Pojav çekirdek ve dil sabitlerini erken başlat
+        try {
+            Tools.initStorageConstants(this);
+            LocaleUtils.setLocale(this);
+            LauncherPreferences.loadPreferences(this);
+        } catch (Throwable ignored) {}
 
         try {
             mWebView = new WebView(this);
@@ -191,10 +216,41 @@ public class CraftLiraMainActivity extends Activity {
 
                 private WebResourceResponse handleAsset(String url) {
                     if (url == null) return null;
-                    if (url.contains("android_asset/public/")) {
-                        try {
+                    try {
+                        // 1. Logolar, Bannerlar ve İkonlar için garantili doğrudan fast-path
+                        if (url.contains("mascot-transparent.png")) {
+                            InputStream is = getAssets().open("public/assets/mascot-transparent.png");
+                            return new WebResourceResponse("image/png", null, is);
+                        }
+                        if (url.contains("banner.jpg")) {
+                            InputStream is = getAssets().open("public/assets/banner.jpg");
+                            return new WebResourceResponse("image/jpeg", null, is);
+                        }
+                        if (url.contains("mascot.png")) {
+                            InputStream is = getAssets().open("public/assets/mascot.png");
+                            return new WebResourceResponse("image/png", null, is);
+                        }
+                        if (url.contains("favicon.svg")) {
+                            InputStream is = getAssets().open("public/favicon.svg");
+                            return new WebResourceResponse("image/svg+xml", "UTF-8", is);
+                        }
+                        if (url.contains("icons.svg")) {
+                            InputStream is = getAssets().open("public/icons.svg");
+                            return new WebResourceResponse("image/svg+xml", "UTF-8", is);
+                        }
+
+                        // 2. Genel asset çözümleyici
+                        String subPath = null;
+                        if (url.contains("android_asset/public/")) {
                             int idx = url.indexOf("android_asset/public/");
-                            String subPath = url.substring(idx + "android_asset/public/".length());
+                            subPath = url.substring(idx + "android_asset/public/".length());
+                        } else if (url.contains("assets/")) {
+                            int idx = url.indexOf("assets/");
+                            subPath = url.substring(idx);
+                        } else if (url.startsWith("file:///")) {
+                            subPath = url.substring("file:///".length());
+                        }
+                        if (subPath != null) {
                             int q = subPath.indexOf('?');
                             if (q != -1) subPath = subPath.substring(0, q);
                             int h = subPath.indexOf('#');
@@ -202,23 +258,44 @@ public class CraftLiraMainActivity extends Activity {
                             if (subPath.isEmpty()) subPath = "index.html";
 
                             String mimeType = "application/octet-stream";
-                            if (subPath.endsWith(".html")) mimeType = "text/html";
-                            else if (subPath.endsWith(".js")) mimeType = "text/javascript";
-                            else if (subPath.endsWith(".css")) mimeType = "text/css";
-                            else if (subPath.endsWith(".json")) mimeType = "application/json";
+                            String encoding = null;
+                            if (subPath.endsWith(".html")) { mimeType = "text/html"; encoding = "UTF-8"; }
+                            else if (subPath.endsWith(".js")) { mimeType = "text/javascript"; encoding = "UTF-8"; }
+                            else if (subPath.endsWith(".css")) { mimeType = "text/css"; encoding = "UTF-8"; }
+                            else if (subPath.endsWith(".json")) { mimeType = "application/json"; encoding = "UTF-8"; }
                             else if (subPath.endsWith(".png")) mimeType = "image/png";
                             else if (subPath.endsWith(".jpg") || subPath.endsWith(".jpeg")) mimeType = "image/jpeg";
-                            else if (subPath.endsWith(".svg")) mimeType = "image/svg+xml";
+                            else if (subPath.endsWith(".svg")) { mimeType = "image/svg+xml"; encoding = "UTF-8"; }
+                            else if (subPath.endsWith(".webp")) mimeType = "image/webp";
                             else if (subPath.endsWith(".woff2")) mimeType = "font/woff2";
                             else if (subPath.endsWith(".woff")) mimeType = "font/woff";
                             else if (subPath.endsWith(".ttf")) mimeType = "font/ttf";
                             else if (subPath.endsWith(".mp3")) mimeType = "audio/mpeg";
 
-                            InputStream is = getAssets().open("public/" + subPath);
-                            return new WebResourceResponse(mimeType, "UTF-8", is);
-                        } catch (Throwable t) {
-                            Log.w("CraftLiraWeb", "Asset load error: " + url + " - " + t.getMessage());
+                            InputStream is = null;
+                            String clean = subPath;
+                            while (clean.startsWith("/")) clean = clean.substring(1);
+                            if (clean.startsWith("public/")) clean = clean.substring(7);
+
+                            String[] candidates = new String[] {
+                                "public/" + clean,
+                                "public/assets/" + clean,
+                                clean.startsWith("assets/") ? "public/" + clean : "public/assets/" + clean,
+                                clean
+                            };
+                            for (String cand : candidates) {
+                                try {
+                                    is = getAssets().open(cand);
+                                    if (is != null) break;
+                                } catch (Throwable ignored) {}
+                            }
+
+                            if (is != null) {
+                                return new WebResourceResponse(mimeType, encoding, is);
+                            }
                         }
+                    } catch (Throwable t) {
+                        Log.w("CraftLiraWeb", "Asset load error: " + url + " - " + t.getMessage());
                     }
                     return null;
                 }
@@ -256,7 +333,6 @@ public class CraftLiraMainActivity extends Activity {
         }
     }
 
-
     private void prepareAndLaunch(String username, int ramMb) {
         try {
             if (username == null || username.trim().isEmpty()) {
@@ -265,41 +341,89 @@ public class CraftLiraMainActivity extends Activity {
             username = username.trim();
 
             try {
-                File accDir = new File(getFilesDir(), "accounts");
-                if (!accDir.exists()) {
-                    accDir.mkdirs();
-                }
-                File accFile = new File(accDir, "craftlira.json");
-                String json = "{\\n" +
-                        "  \\"username\\": \\"" + username + "\\",\\n" +
-                        "  \\"authType\\": \\"LOCAL\\",\\n" +
-                        "  \\"isMicrosoft\\": false,\\n" +
-                        "  \\"profileId\\": \\"00000000-0000-0000-0000-000000000000\\",\\n" +
-                        "  \\"accessToken\\": \\"0\\\",\\n" +
-                        "  \\"refreshToken\\": \\"0\\\",\\n" +
-                        "  \\"expiresAt\\": 0\\n" +
-                        "}";
-                FileWriter writer = new FileWriter(accFile);
-                writer.write(json);
-                writer.close();
-
-                SharedPreferences prefs = getSharedPreferences("net.kdt.pojavlaunch_preferences", MODE_PRIVATE);
-                prefs.edit().putString("selected_account_file", "craftlira.json").commit();
-                if (LauncherPreferences.DEFAULT_PREF != null) {
-                    LauncherPreferences.DEFAULT_PREF.edit().putString("selected_account_file", "craftlira.json").commit();
-                }
+                Tools.initStorageConstants(this);
+                LocaleUtils.setLocale(this);
+                LauncherPreferences.loadPreferences(this);
             } catch (Throwable ignored) {}
 
+            // 1. Ücretsiz/Offline hesap dosyasını (craftlira.json) Pojav'ın erişebileceği tüm dizinlere kaydet
+            String json = "{\\n" +
+                    "  \\"username\\": \\"" + username + "\\",\\n" +
+                    "  \\"authType\\": \\"LOCAL\\",\\n" +
+                    "  \\"isMicrosoft\\": false,\\n" +
+                    "  \\"profileId\\": \\"00000000-0000-0000-0000-000000000000\\",\\n" +
+                    "  \\"accessToken\\": \\"0\\",\\n" +
+                    "  \\"refreshToken\\": \\"0\\",\\n" +
+                    "  \\"expiresAt\\": 0\\n" +
+                    "}";
+
+            File[] accountDirs = new File[] {
+                getFilesDir().getParentFile() != null ? new File(getFilesDir().getParentFile(), "accounts") : null,
+                new File(getFilesDir(), "accounts"),
+                Tools.DIR_ACCOUNT_NEW != null ? new File(Tools.DIR_ACCOUNT_NEW) : null
+            };
+
+            for (File accDir : accountDirs) {
+                if (accDir == null) continue;
+                try {
+                    if (!accDir.exists()) {
+                        accDir.mkdirs();
+                    }
+                    File accFile = new File(accDir, "craftlira.json");
+                    FileWriter writer = new FileWriter(accFile);
+                    writer.write(json);
+                    writer.close();
+                } catch (Throwable ignored) {}
+            }
+
+            // 2. Tercihleri (seçili hesap, sürüm ve RAM) tüm SharedPreferences kayıtlarına yaz
             try {
+                SharedPreferences prefs1 = getSharedPreferences("net.kdt.pojavlaunch_preferences", MODE_PRIVATE);
+                prefs1.edit().putString("selected_account_file", "craftlira.json").putString("currentInstance", "1.20.4").commit();
+
+                SharedPreferences prefs2 = PreferenceManager.getDefaultSharedPreferences(this);
+                prefs2.edit().putString("selected_account_file", "craftlira.json").putString("currentInstance", "1.20.4").commit();
+
+                if (LauncherPreferences.DEFAULT_PREF != null) {
+                    LauncherPreferences.DEFAULT_PREF.edit().putString("selected_account_file", "craftlira.json").putString("currentInstance", "1.20.4").commit();
+                }
+
                 if (ramMb > 0) {
-                    SharedPreferences prefs = getSharedPreferences("net.kdt.pojavlaunch_preferences", MODE_PRIVATE);
-                    prefs.edit().putInt("ramAllocation", ramMb).commit();
+                    prefs1.edit().putInt("ramAllocation", ramMb).commit();
+                    prefs2.edit().putInt("ramAllocation", ramMb).commit();
                     if (LauncherPreferences.DEFAULT_PREF != null) {
                         LauncherPreferences.DEFAULT_PREF.edit().putInt("ramAllocation", ramMb).commit();
                     }
                 }
             } catch (Throwable ignored) {}
 
+            // 3. 1.20.4 Towny instance profilinin diskte mevcut olduğundan emin ol
+            try {
+                String instanceJson = "{\\n" +
+                        "  \\"name\\": \\"1.20.4\\",\\n" +
+                        "  \\"versionId\\": \\"1.20.4\\",\\n" +
+                        "  \\"icon\\": \\"default\\",\\n" +
+                        "  \\"sharedData\\": true,\\n" +
+                        "  \\"argsMode\\": 1\\n" +
+                        "}";
+                File[] instDirs = new File[] {
+                    new File(Tools.DIR_GAME_HOME != null ? Tools.DIR_GAME_HOME : getFilesDir().getAbsolutePath(), "instances/1.20.4"),
+                    new File(getFilesDir(), "instances/1.20.4"),
+                    getFilesDir().getParentFile() != null ? new File(getFilesDir().getParentFile(), "instances/1.20.4") : null
+                };
+                for (File idir : instDirs) {
+                    if (idir == null) continue;
+                    try {
+                        if (!idir.exists()) idir.mkdirs();
+                        File mFile = new File(idir, "mojo_instance.json");
+                        FileWriter fw = new FileWriter(mFile);
+                        fw.write(instanceJson);
+                        fw.close();
+                    } catch (Throwable ignored) {}
+                }
+            } catch (Throwable ignored) {}
+
+            // 4. Arka planda şeffaf çalışan LauncherActivity'yi tetikle (Pojav menüsü görünmez, doğrudan Minecraft açılır)
             Intent launchIntent = new Intent(this, LauncherActivity.class);
             launchIntent.putExtra("auto_launch_craftlira", true);
             launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -312,7 +436,7 @@ public class CraftLiraMainActivity extends Activity {
                         ExtraCore.setValue(ExtraConstants.LAUNCH_GAME, Boolean.TRUE);
                     } catch (Throwable ignored) {}
                 }
-            }, 600);
+            }, 500);
 
         } catch (Throwable e) {
             e.printStackTrace();
@@ -394,82 +518,324 @@ def patch_manifest(decompiled_dir: Path):
     if "com.craftlira.launcher.CraftLiraMainActivity" not in content:
         content = content.replace('</application>', craftlira_activity_xml + '\n    </application>')
 
-    # 5. LauncherActivity'yi exported=true yap
-    content = content.replace(
-        '<activity android:label="@string/app_short_name" android:name="net.kdt.pojavlaunch.LauncherActivity"',
-        '<activity android:exported="true" android:label="@string/app_short_name" android:name="net.kdt.pojavlaunch.LauncherActivity"'
-    )
+    # 5. LauncherActivity'yi exported=true ve TranslucentAppTheme yap (Menü arkaplanda şeffaf kalır)
+    if 'android:theme="@style/TranslucentAppTheme"' not in content:
+        content = re.sub(
+            r'<activity\s+[^>]*?android:name="net\.kdt\.pojavlaunch\.LauncherActivity"[^>]*?/>',
+            '<activity android:exported="true" android:label="@string/app_short_name" android:name="net.kdt.pojavlaunch.LauncherActivity" android:theme="@style/TranslucentAppTheme" android:windowSoftInputMode="adjustResize"/>',
+            content
+        )
 
     manifest_file.write_text(content, encoding="utf-8")
-    print("[OK] AndroidManifest.xml: CraftLiraMainActivity ana başlatıcı yapıldı.")
+    print("[OK] AndroidManifest.xml: CraftLiraMainActivity ana başlatıcı & LauncherActivity şeffaf yapıldı.")
+
+def patch_resources(decompiled_dir: Path):
+    """Pojav arayüzünü gizler ve şeffaf tema ekler (Sadece Minecraft gösterilir)."""
+    res_dir = decompiled_dir / "res"
+
+    # 1. styles.xml içine TranslucentAppTheme ekle
+    styles_file = res_dir / "values" / "styles.xml"
+    if styles_file.exists():
+        s_content = styles_file.read_text(encoding="utf-8")
+        if "TranslucentAppTheme" not in s_content:
+            theme_xml = """    <style name="TranslucentAppTheme" parent="@style/AppTheme">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:colorBackgroundCacheHint">@null</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation</item>
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+</resources>"""
+            s_content = s_content.replace("</resources>", theme_xml)
+            styles_file.write_text(s_content, encoding="utf-8")
+            print("[OK] styles.xml: TranslucentAppTheme şeffaf tema eklendi.")
+
+    # 2. activity_pojav_launcher.xml: Pojav menü öğelerini (hesap seçici, ayarlar, ana menü) gizle
+    layout_file = res_dir / "layout" / "activity_pojav_launcher.xml"
+    if layout_file.exists():
+        l_content = layout_file.read_text(encoding="utf-8")
+        if 'android:id="@id/account_spinner"' in l_content and 'android:id="@id/account_spinner" android:visibility="gone"' not in l_content:
+            l_content = l_content.replace('android:id="@id/account_spinner"', 'android:id="@id/account_spinner" android:visibility="gone"')
+        if 'android:id="@id/setting_button"' in l_content and 'android:id="@id/setting_button" android:visibility="gone"' not in l_content:
+            l_content = l_content.replace('android:id="@id/setting_button"', 'android:id="@id/setting_button" android:visibility="gone"')
+        if 'android:id="@id/container_fragment"' in l_content and 'android:id="@id/container_fragment" android:visibility="gone"' not in l_content:
+            l_content = l_content.replace('android:id="@id/container_fragment"', 'android:id="@id/container_fragment" android:visibility="gone"')
+        layout_file.write_text(l_content, encoding="utf-8")
+        print("[OK] activity_pojav_launcher.xml: Pojav menü öğeleri gizlendi (Arka planda çalışır).")
+
+    # 3. fragment_launcher.xml: Ana menü fragment içeriğini tamamen gizle
+    frag_file = res_dir / "layout" / "fragment_launcher.xml"
+    if frag_file.exists():
+        f_content = frag_file.read_text(encoding="utf-8")
+        if 'android:id="@id/fragment_menu_main"' in f_content and 'android:id="@id/fragment_menu_main" android:visibility="gone"' not in f_content:
+            f_content = f_content.replace('android:id="@id/fragment_menu_main"', 'android:id="@id/fragment_menu_main" android:visibility="gone"')
+            frag_file.write_text(f_content, encoding="utf-8")
+            print("[OK] fragment_launcher.xml: Pojav ana menü içeriği gizlendi.")
+
+    # 4. Pojav Hesap Sorma ve Giriş Ekranlarını Sıfırla ve Görünmez Yap
+    # NPE oluşmaması için dummy ID'ler korunarak görünmez yapılır
+    auth_select = res_dir / "layout" / "fragment_select_auth_method.xml"
+    if auth_select.exists():
+        auth_select.write_text(
+            '<?xml version="1.0" encoding="utf-8"?>\n'
+            '<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" '
+            'android:layout_width="0.0dip" android:layout_height="0.0dip" '
+            'android:background="@android:color/transparent" android:visibility="gone">\n'
+            '    <Button android:id="@id/button_microsoft_authentication" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />\n'
+            '    <Button android:id="@id/button_elyby_authentication" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />\n'
+            '    <Button android:id="@id/button_local_authentication" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />\n'
+            '</FrameLayout>\n',
+            encoding='utf-8'
+        )
+        print("[OK] fragment_select_auth_method.xml: Görünmez dummy layout yapıldı.")
+
+    local_login = res_dir / "layout" / "fragment_local_login.xml"
+    if local_login.exists():
+        local_login.write_text(
+            '<?xml version="1.0" encoding="utf-8"?>\n'
+            '<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" '
+            'android:layout_width="0.0dip" android:layout_height="0.0dip" '
+            'android:background="@android:color/transparent" android:visibility="gone">\n'
+            '    <EditText android:id="@id/login_edit_email" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />\n'
+            '    <Button android:id="@id/login_button" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />\n'
+            '</FrameLayout>\n',
+            encoding='utf-8'
+        )
+        print("[OK] fragment_local_login.xml: Görünmez dummy layout yapıldı.")
+
+    ms_login = res_dir / "layout" / "fragment_microsoft_login.xml"
+    if ms_login.exists():
+        ms_login.write_text(
+            '<?xml version="1.0" encoding="utf-8"?>\n'
+            '<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" '
+            'android:layout_width="0.0dip" android:layout_height="0.0dip" '
+            'android:background="@android:color/transparent" android:visibility="gone" />\n',
+            encoding='utf-8'
+        )
+        print("[OK] fragment_microsoft_login.xml: Görünmez dummy layout yapıldı.")
 
 def patch_smali_engine(decompiled_dir: Path):
-    """Pojav smali kodlarına oyna.craftlira.com otomatik bağlantı ve depolama bypass ekler."""
-    # 1. Tools.checkStorageRoot -> her zaman true döndür (MissingStorageActivity crash'ini engeller)
-    tools_smali = decompiled_dir / "smali_classes3" / "net" / "kdt" / "pojavlaunch" / "Tools.smali"
+    """Pojav smali kodlarına oyna.craftlira.com otomatik bağlantı, sessiz başlatıcı ve hesap bypass ekler."""
+    smali_dir = decompiled_dir / "smali_classes3"
+
+    # 1. Tools.smali: checkStorageRoot daima true & restartLauncherActivity -> CraftLiraMainActivity & swapFragment Auth blokajı
+    tools_smali = smali_dir / "net" / "kdt" / "pojavlaunch" / "Tools.smali"
     if tools_smali.exists():
         t_content = tools_smali.read_text(encoding="utf-8")
-        target_method = """.method public static checkStorageRoot(Landroid/content/Context;)Z
-    .locals 0
+        target_check_storage = r'(\.method public static checkStorageRoot\(Landroid/content/Context;\)Z\s+\.locals 0)(.*?)(\.end method)'
+        replacement_check_storage = r'\1\n\n    const/4 v0, 0x1\n\n    return v0\n\3'
+        t_content = re.sub(target_check_storage, replacement_check_storage, t_content, flags=re.DOTALL)
 
-    .line 147
-    invoke-static {p0}, Lnet/kdt/pojavlaunch/Tools;->getPojavStorageRoot(Landroid/content/Context;)Ljava/io/File;
+        # Oyundan çıkıldığında Pojav menüsü yerine doğrudan CraftLira ekranına dön
+        t_content = t_content.replace(
+            "const-class v1, Lnet/kdt/pojavlaunch/LauncherActivity;",
+            "const-class v1, Lcom/craftlira/launcher/CraftLiraMainActivity;"
+        )
 
-    move-result-object p0
+        # swapFragment içinde Auth veya Login fragmentlerine geçişi tamamen engelle
+        if ":cond_cfl_cont" not in t_content:
+            pattern_swap = r'(\.method public static swapFragment\(Landroidx/fragment/app/FragmentActivity;Ljava/lang/Class;Ljava/lang/String;Landroid/os/Bundle;\)V\s+\.locals )\d+'
+            replacement_swap = r'''\1 2
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Landroidx/fragment/app/FragmentActivity;",
+            "Ljava/lang/Class<",
+            "+",
+            "Landroidx/fragment/app/Fragment;",
+            ">;",
+            "Ljava/lang/String;",
+            "Landroid/os/Bundle;",
+            ")V"
+        }
+    .end annotation
 
-    if-eqz p0, :cond_0
+    if-eqz p1, :cond_cfl_cont
 
-    const/4 p0, 0x1
+    invoke-virtual {p1}, Ljava/lang/Class;->getName()Ljava/lang/String;
 
-    return p0
+    move-result-object v0
 
-    :cond_0
-    const/4 p0, 0x0
+    const-string v1, "Auth"
 
-    return p0
-.end method"""
-        replacement_method = """.method public static checkStorageRoot(Landroid/content/Context;)Z
-    .locals 0
+    invoke-virtual {v0, v1}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
 
-    const/4 v0, 0x1
+    move-result v1
 
-    return v0
-.end method"""
-        if target_method in t_content:
-            t_content = t_content.replace(target_method, replacement_method)
-            tools_smali.write_text(t_content, encoding="utf-8")
-            print("[OK] Tools.smali: checkStorageRoot daima true olarak ayarlandı.")
+    if-eqz v1, :cond_cfl_check2
+
+    return-void
+
+    :cond_cfl_check2
+    const-string v1, "Login"
+
+    invoke-virtual {v0, v1}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+
+    move-result v0
+
+    if-eqz v0, :cond_cfl_cont
+
+    return-void
+
+    :cond_cfl_cont'''
+            t_content = re.sub(pattern_swap, replacement_swap, t_content)
+            print("[OK] Tools.smali: swapFragment Auth/Login engelleyici eklendi.")
+
+        tools_smali.write_text(t_content, encoding="utf-8")
+        print("[OK] Tools.smali: checkStorageRoot & restartLauncherActivity yamalandı.")
 
     # 2. GameRunner.smali: oyna.craftlira.com:25565 doğrudan sunucuya bağlan
-    gamerunner_smali = decompiled_dir / "smali_classes3" / "net" / "kdt" / "pojavlaunch" / "utils" / "jre" / "GameRunner.smali"
+    gamerunner_smali = smali_dir / "net" / "kdt" / "pojavlaunch" / "utils" / "jre" / "GameRunner.smali"
     if gamerunner_smali.exists():
         gr_content = gamerunner_smali.read_text(encoding="utf-8")
         if "--quickPlayMultiplayer" not in gr_content:
-            target_code = "invoke-static {p0, v3}, Lnet/kdt/pojavlaunch/utils/JSONUtils;->insertJSONValueList(Ljava/util/List;Ljava/util/Map;)Ljava/util/List;\n\n    move-result-object p0"
-            replacement_code = """invoke-static {p0, v3}, Lnet/kdt/pojavlaunch/utils/JSONUtils;->insertJSONValueList(Ljava/util/List;Ljava/util/Map;)Ljava/util/List;
-
-    move-result-object p0
-
-    const-string v0, "--quickPlayMultiplayer"
-
-    invoke-interface {p0, v0}, Ljava/util/List;->add(Ljava/lang/Object;)Z
-
-    const-string v0, "oyna.craftlira.com:25565"
-
-    invoke-interface {p0, v0}, Ljava/util/List;->add(Ljava/lang/Object;)Z"""
-            if target_code in gr_content:
-                gr_content = gr_content.replace(target_code, replacement_code)
+            pattern_gr = r'(invoke-static \{p0, v3\}, Lnet/kdt/pojavlaunch/utils/JSONUtils;->insertJSONValueList\(Ljava/util/List;Ljava/util/Map;\)Ljava/util/List;\s+move-result-object p0)'
+            replacement_gr = r'\1\n\n    const-string v0, "--quickPlayMultiplayer"\n\n    invoke-interface {p0, v0}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n\n    const-string v0, "oyna.craftlira.com:25565"\n\n    invoke-interface {p0, v0}, Ljava/util/List;->add(Ljava/lang/Object;)Z'
+            gr_content, count = re.subn(pattern_gr, replacement_gr, gr_content)
+            if count > 0:
                 gamerunner_smali.write_text(gr_content, encoding="utf-8")
                 print("[OK] GameRunner.smali: oyna.craftlira.com:25565 doğrudan bağlantı kodu eklendi.")
 
-    # 3. Instances.smali: Varsayılan versiyon 1.20.4
-    instances_smali = decompiled_dir / "smali_classes3" / "net" / "kdt" / "pojavlaunch" / "instances" / "Instances.smali"
+    # 3. Instances.smali: Varsayılan versiyon 1.20.4 ve asla null dönmeme
+    instances_smali = smali_dir / "net" / "kdt" / "pojavlaunch" / "instances" / "Instances.smali"
     if instances_smali.exists():
         inst_content = instances_smali.read_text(encoding="utf-8")
         inst_content = inst_content.replace('const-string v0, "1.12.2"', 'const-string v0, "1.20.4"')
         inst_content = inst_content.replace('const-string v0, "latest_release"', 'const-string v0, "1.20.4"')
+
+        # loadSelectedInstance null dönerse 1.20.4 oluştur
+        if 'sharedData:Z' not in inst_content:
+            pattern_inst_null = r'(if-nez v0, :cond_0\s+)(const/4 v0, 0x0\s+return-object v0)'
+            replacement_inst_null = r'\1new-instance v0, Lnet/kdt/pojavlaunch/instances/Instance;\n\n    invoke-direct {v0}, Lnet/kdt/pojavlaunch/instances/Instance;-><init>()V\n\n    const-string v1, "1.20.4"\n\n    iput-object v1, v0, Lnet/kdt/pojavlaunch/instances/Instance;->versionId:Ljava/lang/String;\n\n    iput-object v1, v0, Lnet/kdt/pojavlaunch/instances/Instance;->name:Ljava/lang/String;\n\n    const/4 v1, 0x1\n\n    iput-boolean v1, v0, Lnet/kdt/pojavlaunch/instances/Instance;->sharedData:Z'
+            inst_content, count = re.subn(pattern_inst_null, replacement_inst_null, inst_content)
+            if count > 0:
+                print("[OK] Instances.smali: Varsayılan sürüm 1.20.4 & güvenli fallback eklendi.")
         instances_smali.write_text(inst_content, encoding="utf-8")
-        print("[OK] Instances.smali: Varsayılan sürüm 1.20.4 yapıldı.")
+
+    # 4. Accounts.smali: getCurrent() ASLA null dönmesin (Pojav hesap diyalogunu tamamen engeller)
+    accounts_smali = smali_dir / "net" / "kdt" / "pojavlaunch" / "authenticator" / "accounts" / "Accounts.smali"
+    if accounts_smali.exists():
+        acc_content = accounts_smali.read_text(encoding="utf-8")
+        if ":cond_cfl_ret" not in acc_content:
+            pattern_acc = r'(\.method public static getCurrent\(\)Lnet/kdt/pojavlaunch/authenticator/accounts/Account;\s+\.locals 3)(.*?)(\.end method)'
+            replacement_acc = r'''\1
+
+    invoke-static {}, Lnet/kdt/pojavlaunch/authenticator/accounts/Accounts;->getSelectedAccount()Ljava/lang/String;
+
+    move-result-object v0
+
+    new-instance v1, Ljava/io/File;
+
+    sget-object v2, Lnet/kdt/pojavlaunch/Tools;->DIR_ACCOUNT_NEW:Ljava/lang/String;
+
+    invoke-direct {v1, v2, v0}, Ljava/io/File;-><init>(Ljava/lang/String;Ljava/lang/String;)V
+
+    invoke-static {v1}, Lnet/kdt/pojavlaunch/authenticator/accounts/Accounts;->loadAccount(Ljava/io/File;)Lnet/kdt/pojavlaunch/authenticator/accounts/Account;
+
+    move-result-object v0
+
+    if-eqz v0, :cond_cfl_ret
+
+    return-object v0
+
+    :cond_cfl_ret
+    new-instance v1, Ljava/io/File;
+
+    sget-object v2, Lnet/kdt/pojavlaunch/Tools;->DIR_ACCOUNT_NEW:Ljava/lang/String;
+
+    const-string v0, "craftlira.json"
+
+    invoke-direct {v1, v2, v0}, Ljava/io/File;-><init>(Ljava/lang/String;Ljava/lang/String;)V
+
+    invoke-static {v1}, Lnet/kdt/pojavlaunch/authenticator/accounts/Accounts;->loadAccount(Ljava/io/File;)Lnet/kdt/pojavlaunch/authenticator/accounts/Account;
+
+    move-result-object v0
+
+    if-eqz v0, :cond_cfl_def
+
+    return-object v0
+
+    :cond_cfl_def
+    new-instance v0, Lnet/kdt/pojavlaunch/authenticator/accounts/Account;
+
+    invoke-direct {v0}, Lnet/kdt/pojavlaunch/authenticator/accounts/Account;-><init>()V
+
+    const-string v1, "Oyuncu"
+
+    iput-object v1, v0, Lnet/kdt/pojavlaunch/authenticator/accounts/Account;->username:Ljava/lang/String;
+
+    return-object v0
+\3'''
+            acc_content, count = re.subn(pattern_acc, replacement_acc, acc_content, flags=re.DOTALL)
+            if count > 0:
+                print("[OK] Accounts.smali: getCurrent() otomatik offline yedek hesap garantisi eklendi.")
+        accounts_smali.write_text(acc_content, encoding="utf-8")
+
+    # 5. LauncherActivity.smali:
+    #    a) onCreate sonunda anında LAUNCH_GAME tetikle (bekletme yok)
+    #    b) mLaunchGameListener içinde hesap null kontrolünü bypass et (:cond_4'e zıpla)
+    #    c) lambda$new$1 (start_login_procedure listener) tamamen iptal et (hesap menüsü asla açılmaz)
+    launcher_act_smali = smali_dir / "net" / "kdt" / "pojavlaunch" / "LauncherActivity.smali"
+    if launcher_act_smali.exists():
+        l_content = launcher_act_smali.read_text(encoding="utf-8")
+
+        # a) Otomatik başlatma: onCreate sonuna launch_game ekle
+        if 'const-string v1, "launch_game"' not in l_content:
+            pattern_oncreate = r'(const-string v0, "data_migration"\s+invoke-virtual \{p1, v0\}, Lcom/kdt/mcgui/ProgressLayout;->observe\(Ljava/lang/String;\)V\s+)(return-void)'
+            replacement_oncreate = r'\1sget-object v0, Ljava/lang/Boolean;->TRUE:Ljava/lang/Boolean;\n\n    const-string v1, "launch_game"\n\n    invoke-static {v1, v0}, Lnet/kdt/pojavlaunch/extra/ExtraCore;->setValue(Ljava/lang/String;Ljava/lang/Object;)V\n\n    \2'
+            l_content, count = re.subn(pattern_oncreate, replacement_oncreate, l_content)
+            if count > 0:
+                print("[OK] LauncherActivity.smali: onCreate anında launch_game tetikleme eklendi.")
+
+        # b) Hesap sorma bloğunu atla (goto :cond_4)
+        if 'goto :cond_4' not in l_content:
+            pattern_login = r'(move-result-object v1\s+)(if-nez v1, :cond_4)'
+            replacement_login = r'\1goto :cond_4'
+            l_content, count = re.subn(pattern_login, replacement_login, l_content)
+            if count > 0:
+                print("[OK] LauncherActivity.smali: start_login_procedure bypass edildi.")
+
+        # c) lambda$new$1 (start_login_procedure) tamamen etkisiz hale getir
+        pattern_auth_lambda = r'(\.method synthetic lambda\$new\$1\$net-kdt-pojavlaunch-LauncherActivity\(Ljava/lang/String;Ljava/lang/Boolean;\)Z\s+)(.*?)(\.end method)'
+        replacement_auth_lambda = r'''\1.locals 1
+
+    const/4 v0, 0x0
+
+    return v0
+\3'''
+        l_content, count = re.subn(pattern_auth_lambda, replacement_auth_lambda, l_content, flags=re.DOTALL)
+        if count > 0:
+            print("[OK] LauncherActivity.smali: lambda$new$1 hesap menüsü çağrısı tamamen devre dışı bırakıldı.")
+
+        launcher_act_smali.write_text(l_content, encoding="utf-8")
+
+    # 6. AccountSpinner.smali: createAccount() metodunu tamamen etkisizleştir
+    for as_file in decompiled_dir.rglob("AccountSpinner.smali"):
+        try:
+            asc = as_file.read_text(encoding="utf-8")
+            pattern_ca = r'(\.method private createAccount\(\)V\s+)(.*?)(\.end method)'
+            replacement_ca = r'\1.locals 0\n\n    return-void\n\3'
+            asc, c = re.subn(pattern_ca, replacement_ca, asc, flags=re.DOTALL)
+            if c > 0:
+                as_file.write_text(asc, encoding="utf-8")
+                print(f"[OK] {as_file.name}: createAccount() devre dışı bırakıldı.")
+        except Exception:
+            pass
+
+    # 7. Tüm Auth fragmentlerinin onViewCreated metodlarını etkisizleştir (Arayüz asla açılamaz)
+    for sf_name in ["SelectAuthFragment.smali", "LocalLoginFragment.smali", "MicrosoftLoginFragment.smali"]:
+        for sf_file in decompiled_dir.rglob(sf_name):
+            try:
+                sfc = sf_file.read_text(encoding="utf-8")
+                pattern_ovc = r'(\.method public onViewCreated\(Landroid/view/View;Landroid/os/Bundle;\)V\s+)(.*?)(\.end method)'
+                replacement_ovc = r'\1.locals 0\n\n    return-void\n\3'
+                sfc, c = re.subn(pattern_ovc, replacement_ovc, sfc, flags=re.DOTALL)
+                if c > 0:
+                    sf_file.write_text(sfc, encoding="utf-8")
+                    print(f"[OK] {sf_name}: onViewCreated temizlendi.")
+            except Exception:
+                pass
 
 def main():
     try:
@@ -513,8 +879,9 @@ def main():
     dest_smali = decompiled_dir / "smali_classes3"
     compile_main_activity(dest_smali)
 
-    # 4. Manifest ve Smali yamalarını uygula
+    # 4. Manifest, kaynaklar ve Smali yamalarını uygula
     patch_manifest(decompiled_dir)
+    patch_resources(decompiled_dir)
     patch_smali_engine(decompiled_dir)
 
     # 5. React dosyalarını assets/public içine yerleştir ve index.html'i Android WebView için optimize et
@@ -535,6 +902,17 @@ def main():
         h_content = h_content.replace(' crossorigin', '').replace('crossorigin ', '').replace('crossorigin', '')
         target_index_html.write_text(h_content, encoding="utf-8")
         print("[OK] assets/public/index.html göreli yollar ve defer script ile Android WebView için optimize edildi.")
+
+        # 3. JS bundle dosyalarındaki mutlak /assets/ referanslarını ./assets/ yap
+        for js_file in assets_public_dir.glob("**/*.js"):
+            try:
+                jc = js_file.read_text(encoding="utf-8")
+                if '/assets/' in jc:
+                    jc = jc.replace('"/assets/', '"./assets/').replace("'/assets/", "'./assets/")
+                    js_file.write_text(jc, encoding="utf-8")
+            except Exception:
+                pass
+
     print(f"[OK] React varlıkları assets/public içine kopyalandı.")
 
     # 6. Marka ve İsimlendirme

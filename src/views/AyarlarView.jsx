@@ -105,7 +105,7 @@ export default function AyarlarView({
             <img 
               src={`https://mc-heads.net/avatar/${encodeURIComponent(inputName.trim() || 'Steve')}/44`} 
               alt={inputName || 'Steve'}
-              onError={(e) => { e.target.src = '/assets/mascot-transparent.png'; }}
+              onError={(e) => { e.target.src = './assets/mascot-transparent.png'; }}
               style={{ width: '85%', height: '85%', objectFit: 'contain' }}
             />
           </div>

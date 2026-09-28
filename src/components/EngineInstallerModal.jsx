@@ -154,7 +154,7 @@ export default function EngineInstallerModal({
         }}
       >
         <img 
-          src="/assets/mascot-transparent.png" 
+          src="./assets/mascot-transparent.png" 
           alt="CraftLira Fox" 
           style={{ width: '100%', height: '100%', objectFit: 'contain' }}
         />

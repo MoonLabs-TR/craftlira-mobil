@@ -27,7 +27,7 @@ export default function TopHeader({
     <header className="app-top-header">
       <div className="brand-wrapper">
         <div className="brand-mascot-icon animate-float">
-          <img src="/assets/mascot-transparent.png" alt="CraftLira Fox" />
+          <img src="./assets/mascot-transparent.png" alt="CraftLira Fox" />
         </div>
         <div className="brand-text">
           <h1>Craft<span>Lira</span></h1>

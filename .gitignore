@@ -37,3 +37,5 @@ release-apk/
 build_craftlira/
 cache/
 test_compile/
+__pycache__/
+*.pyc

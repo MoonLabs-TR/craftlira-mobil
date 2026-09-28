@@ -78,7 +78,7 @@ export default function OynaView({
           style={{
             height: 135,
             width: '100%',
-            backgroundImage: 'url(/assets/banner.jpg)',
+            backgroundImage: 'url(./assets/banner.jpg)',
             backgroundSize: 'cover',
             backgroundPosition: 'center 40%',
             position: 'relative'
@@ -120,7 +120,7 @@ export default function OynaView({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <img 
-                src="/assets/mascot-transparent.png" 
+                src="./assets/mascot-transparent.png" 
                 alt="CraftLira Fox" 
                 className="animate-float"
                 style={{ 
@@ -238,7 +238,7 @@ export default function OynaView({
               <img 
                 src={`https://mc-heads.net/avatar/${encodeURIComponent(username || 'Steve')}/40`} 
                 alt={username || 'Steve'}
-                onError={(e) => { e.target.src = '/assets/mascot-transparent.png'; }}
+                onError={(e) => { e.target.src = './assets/mascot-transparent.png'; }}
                 style={{ width: '85%', height: '85%', objectFit: 'contain' }}
               />
             </div>

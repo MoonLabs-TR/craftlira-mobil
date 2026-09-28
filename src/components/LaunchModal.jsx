@@ -37,8 +37,8 @@ export default function LaunchModal({
       desc: "oyna.craftlira.com dünyasına doğrudan giriş yapılıyor..." 
     },
     { 
-      title: "Oyun Başlatıldı!", 
-      desc: "CraftLira Towny dünyasına aktarılıyorsunuz..." 
+      title: "Minecraft Başlatılıyor...", 
+      desc: "CraftLira Towny dünyasına bağlanılıyor, lütfen bekleyin..." 
     }
   ];
 
@@ -142,7 +142,7 @@ export default function LaunchModal({
         }}
       >
         <img 
-          src="/assets/mascot-transparent.png" 
+          src="./assets/mascot-transparent.png" 
           alt="CraftLira Fox" 
           style={{ width: '100%', height: '100%', objectFit: 'contain' }}
         />
