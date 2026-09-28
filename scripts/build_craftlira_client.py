@@ -103,8 +103,13 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.ViewGroup;
+import android.webkit.ConsoleMessage;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -115,6 +120,7 @@ import net.kdt.pojavlaunch.extra.ExtraCore;
 import net.kdt.pojavlaunch.prefs.LauncherPreferences;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.InputStream;
 
 public class CraftLiraMainActivity extends Activity {
 
@@ -132,6 +138,8 @@ public class CraftLiraMainActivity extends Activity {
 
         try {
             mWebView = new WebView(this);
+            mWebView.setBackgroundColor(0xFF0D0F14);
+
             ViewGroup.LayoutParams params = new ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
@@ -146,8 +154,80 @@ public class CraftLiraMainActivity extends Activity {
             settings.setDatabaseEnabled(true);
             settings.setUseWideViewPort(true);
             settings.setLoadWithOverviewMode(true);
+            settings.setAllowFileAccessFromFileURLs(true);
+            settings.setAllowUniversalAccessFromFileURLs(true);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+            }
+            settings.setCacheMode(WebSettings.LOAD_DEFAULT);
 
-            mWebView.setWebViewClient(new WebViewClient());
+            mWebView.setWebChromeClient(new WebChromeClient() {
+                @Override
+                public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
+                    Log.d("CraftLiraWeb", "[" + consoleMessage.messageLevel() + "] "
+                            + consoleMessage.message() + " ("
+                            + consoleMessage.sourceId() + ":"
+                            + consoleMessage.lineNumber() + ")");
+                    return true;
+                }
+            });
+
+            mWebView.setWebViewClient(new WebViewClient() {
+                @Override
+                public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                    if (request != null && request.getUrl() != null) {
+                        WebResourceResponse resp = handleAsset(request.getUrl().toString());
+                        if (resp != null) return resp;
+                    }
+                    return super.shouldInterceptRequest(view, request);
+                }
+
+                @Override
+                public WebResourceResponse shouldInterceptRequest(WebView view, String url) {
+                    WebResourceResponse resp = handleAsset(url);
+                    if (resp != null) return resp;
+                    return super.shouldInterceptRequest(view, url);
+                }
+
+                private WebResourceResponse handleAsset(String url) {
+                    if (url == null) return null;
+                    if (url.contains("android_asset/public/")) {
+                        try {
+                            int idx = url.indexOf("android_asset/public/");
+                            String subPath = url.substring(idx + "android_asset/public/".length());
+                            int q = subPath.indexOf('?');
+                            if (q != -1) subPath = subPath.substring(0, q);
+                            int h = subPath.indexOf('#');
+                            if (h != -1) subPath = subPath.substring(0, h);
+                            if (subPath.isEmpty()) subPath = "index.html";
+
+                            String mimeType = "application/octet-stream";
+                            if (subPath.endsWith(".html")) mimeType = "text/html";
+                            else if (subPath.endsWith(".js")) mimeType = "text/javascript";
+                            else if (subPath.endsWith(".css")) mimeType = "text/css";
+                            else if (subPath.endsWith(".json")) mimeType = "application/json";
+                            else if (subPath.endsWith(".png")) mimeType = "image/png";
+                            else if (subPath.endsWith(".jpg") || subPath.endsWith(".jpeg")) mimeType = "image/jpeg";
+                            else if (subPath.endsWith(".svg")) mimeType = "image/svg+xml";
+                            else if (subPath.endsWith(".woff2")) mimeType = "font/woff2";
+                            else if (subPath.endsWith(".woff")) mimeType = "font/woff";
+                            else if (subPath.endsWith(".ttf")) mimeType = "font/ttf";
+                            else if (subPath.endsWith(".mp3")) mimeType = "audio/mpeg";
+
+                            InputStream is = getAssets().open("public/" + subPath);
+                            return new WebResourceResponse(mimeType, "UTF-8", is);
+                        } catch (Throwable t) {
+                            Log.w("CraftLiraWeb", "Asset load error: " + url + " - " + t.getMessage());
+                        }
+                    }
+                    return null;
+                }
+
+                @Override
+                public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+                    Log.e("CraftLiraWeb", "WebView Error: " + errorCode + " - " + description + " URL: " + failingUrl);
+                }
+            });
 
             mWebView.addJavascriptInterface(new Object() {
                 @JavascriptInterface
@@ -175,6 +255,7 @@ public class CraftLiraMainActivity extends Activity {
             t.printStackTrace();
         }
     }
+
 
     private void prepareAndLaunch(String username, int ramMb) {
         try {
@@ -411,14 +492,13 @@ def main():
     download_if_needed(ANDROID_JAR_URL, ANDROID_JAR, "Android Platform SDK Jar")
     download_if_needed(BASE_ENGINE_URL, ENGINE_BASE_APK, "Temel Oyun Motoru (130 MB)", min_size=50000000)
 
-    # 1. React Web Arayüzünü kontrol et
+    # 1. React Web Arayüzünü her zaman temizleyip derle
     dist_dir = BASE_DIR / "dist"
-    if not (dist_dir / "index.html").exists():
-        print("[+] React arayüzü derleniyor...")
-        if os.name == 'nt':
-            subprocess.run(["npm.cmd", "run", "build"], cwd=str(BASE_DIR), check=True)
-        else:
-            subprocess.run(["npm", "run", "build"], cwd=str(BASE_DIR), check=True)
+    print("[+] React arayüzü güncel kodlarla derleniyor...")
+    if os.name == 'nt':
+        subprocess.run(["npm.cmd", "run", "build"], cwd=str(BASE_DIR), check=True)
+    else:
+        subprocess.run(["npm", "run", "build"], cwd=str(BASE_DIR), check=True)
     print(f"[OK] React arayüzü hazır: {dist_dir}")
 
     # 2. Motor APK'sını decompile et
@@ -437,11 +517,24 @@ def main():
     patch_manifest(decompiled_dir)
     patch_smali_engine(decompiled_dir)
 
-    # 5. React dosyalarını assets/public içine yerleştir
+    # 5. React dosyalarını assets/public içine yerleştir ve index.html'i Android WebView için optimize et
     assets_public_dir = decompiled_dir / "assets" / "public"
     if assets_public_dir.exists():
         shutil.rmtree(assets_public_dir)
     shutil.copytree(dist_dir, assets_public_dir)
+
+    target_index_html = assets_public_dir / "index.html"
+    if target_index_html.exists():
+        h_content = target_index_html.read_text(encoding="utf-8")
+        # 1. Mutlak yolları (örn: /assets/) göreli yollara (./assets/) dönüştür
+        h_content = re.sub(r'href="/assets/', 'href="./assets/', h_content)
+        h_content = re.sub(r'src="/assets/', 'src="./assets/', h_content)
+        # 2. Chromium strict MIME type ve CORS blokajını engellemek için type="module" ve crossorigin'i temizle
+        h_content = re.sub(r'<script\s+type="module"\s+crossorigin\s+src="([^"]+)">\s*</script>', r'<script defer src="\1"></script>', h_content)
+        h_content = re.sub(r'<script\s+type="module"\s+src="([^"]+)">\s*</script>', r'<script defer src="\1"></script>', h_content)
+        h_content = h_content.replace(' crossorigin', '').replace('crossorigin ', '').replace('crossorigin', '')
+        target_index_html.write_text(h_content, encoding="utf-8")
+        print("[OK] assets/public/index.html göreli yollar ve defer script ile Android WebView için optimize edildi.")
     print(f"[OK] React varlıkları assets/public içine kopyalandı.")
 
     # 6. Marka ve İsimlendirme

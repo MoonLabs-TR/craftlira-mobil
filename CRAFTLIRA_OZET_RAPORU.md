@@ -30,6 +30,18 @@ CraftLira Mobil için harici hiçbir yardımcı uygulamaya (Asistan APK, ayrı P
   2. `TestStorageActivity` devre dışı bırakıldı ve `Tools.checkStorageRoot` depolama kontrolü daima `true` dönecek şekilde yamalandı.
   3. `<application>` etiketinden `:launcher` işlem adı kaldırıldı ve WebView için güvenli dizin ön eki (`setDataDirectorySuffix`) eklendi.
 
+### D. Açılışta Bembeyaz Ekran Gelmesi Sorunu
+* **Sorun:** Uygulama açıldığında çökmüyor ancak altın sarısı React arayüzü yerine tamamen bomboş beyaz bir ekran geliyordu.
+* **Sebep 1 (Vite Mutlak Yollar):** `vite.config.js` varsayılan olarak `/assets/...` (root slash) üretiyordu. Android WebView'de `file:///android_asset/public/index.html` açıldığında bu istek `file:///assets/...` şeklinde köke yöneliyor ve 404 (dosya bulunamadı) oluyordu.
+* **Sebep 2 (Chromium ES Module & MIME Type Blokajı):** Modern Chromium WebView motorları `file://` protokolü üzerinden çağrılan `<script type="module" crossorigin src="...">` etiketlerini strict CORS ve MIME type denetimine sokar. `file://` üzerinden gelen yanıtlarda HTTP `Content-Type: text/javascript` başlığı bulunmadığından Chromium scripti çalıştırmayı reddediyordu.
+* **Sebep 3 (WebView Varsayılan Rengi):** WebView'in arka plan rengi varsayılan olarak beyaz (`#FFFFFF`) olduğu için henüz içerik yüklenirken bile gözü yoran beyaz bir alan oluşuyordu.
+* **Çözüm:**
+  1. `CraftLiraMainActivity` içinde `WebView.setBackgroundColor(0xFF0D0F14)` tanımlandı (asla beyaz zemin oluşmaz).
+  2. `settings.setAllowFileAccessFromFileURLs(true)` ve `settings.setAllowUniversalAccessFromFileURLs(true)` açıldı.
+  3. `WebViewClient.shouldInterceptRequest` metodunda `file:///android_asset/public/` varlıkları yakalanarak `.js` dosyalarına kesin `text/javascript`, `.css` dosyalarına `text/css` MIME başlığı verildi.
+  4. Derleme scriptinde `index.html` içeriğindeki `type="module"` ve `crossorigin` öznitelikleri kaldırılarak güvenli `<script defer src="./assets/...">` formatına dönüştürüldü ve tüm yollar `./assets/` yapıldı.
+  5. Kaynak `index.html` içerisine inline koyu arka plan stili ve global hata yakalayıcı yerleştirildi.
+
 ---
 
 ## 3. Tamamlanan Teknik Entegrasyonlar
