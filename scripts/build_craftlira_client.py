@@ -555,12 +555,10 @@ def patch_resources(decompiled_dir: Path):
     layout_file = res_dir / "layout" / "activity_pojav_launcher.xml"
     if layout_file.exists():
         l_content = layout_file.read_text(encoding="utf-8")
-        if 'android:id="@id/account_spinner"' in l_content and 'android:id="@id/account_spinner" android:visibility="gone"' not in l_content:
-            l_content = l_content.replace('android:id="@id/account_spinner"', 'android:id="@id/account_spinner" android:visibility="gone"')
-        if 'android:id="@id/setting_button"' in l_content and 'android:id="@id/setting_button" android:visibility="gone"' not in l_content:
-            l_content = l_content.replace('android:id="@id/setting_button"', 'android:id="@id/setting_button" android:visibility="gone"')
-        if 'android:id="@id/container_fragment"' in l_content and 'android:id="@id/container_fragment" android:visibility="gone"' not in l_content:
-            l_content = l_content.replace('android:id="@id/container_fragment"', 'android:id="@id/container_fragment" android:visibility="gone"')
+        for v_id in ["account_spinner", "setting_button", "container_fragment", "progress_layout"]:
+            l_content = re.sub(rf'android:id="@id/{v_id}"(?:\s+android:visibility="[^"]*")*', f'android:id="@id/{v_id}" android:visibility="gone"', l_content)
+        if 'android:background="@android:color/transparent"' not in l_content:
+            l_content = l_content.replace('<androidx.constraintlayout.widget.ConstraintLayout ', '<androidx.constraintlayout.widget.ConstraintLayout android:background="@android:color/transparent" ')
         layout_file.write_text(l_content, encoding="utf-8")
         print("[OK] activity_pojav_launcher.xml: Pojav menü öğeleri gizlendi (Arka planda çalışır).")
 
@@ -568,10 +566,13 @@ def patch_resources(decompiled_dir: Path):
     frag_file = res_dir / "layout" / "fragment_launcher.xml"
     if frag_file.exists():
         f_content = frag_file.read_text(encoding="utf-8")
-        if 'android:id="@id/fragment_menu_main"' in f_content and 'android:id="@id/fragment_menu_main" android:visibility="gone"' not in f_content:
-            f_content = f_content.replace('android:id="@id/fragment_menu_main"', 'android:id="@id/fragment_menu_main" android:visibility="gone"')
-            frag_file.write_text(f_content, encoding="utf-8")
-            print("[OK] fragment_launcher.xml: Pojav ana menü içeriği gizlendi.")
+        f_content = re.sub(r'android:id="@id/fragment_menu_main"(?:\s+android:visibility="[^"]*")*', 'android:id="@id/fragment_menu_main" android:visibility="gone"', f_content)
+        if 'android:background="@android:color/transparent"' not in f_content:
+            f_content = f_content.replace('<androidx.constraintlayout.widget.ConstraintLayout ', '<androidx.constraintlayout.widget.ConstraintLayout android:background="@android:color/transparent" ')
+        # Yinelenen visibility özniteliklerini engelle
+        f_content = re.sub(r'(android:visibility="gone"\s*)+', 'android:visibility="gone" ', f_content)
+        frag_file.write_text(f_content, encoding="utf-8")
+        print("[OK] fragment_launcher.xml: Pojav ana menü içeriği gizlendi.")
 
     # 4. Pojav Hesap Sorma ve Giriş Ekranlarını Sıfırla ve Görünmez Yap
     # NPE oluşmaması için dummy ID'ler korunarak görünmez yapılır
@@ -633,24 +634,10 @@ def patch_smali_engine(decompiled_dir: Path):
             "const-class v1, Lcom/craftlira/launcher/CraftLiraMainActivity;"
         )
 
-        # swapFragment içinde Auth veya Login fragmentlerine geçişi tamamen engelle
+        # swapFragment içinde Auth veya Login fragmentlerine geçişi tamamen engelle (imza anotasyonunu bozmadan)
         if ":cond_cfl_cont" not in t_content:
-            pattern_swap = r'(\.method public static swapFragment\(Landroidx/fragment/app/FragmentActivity;Ljava/lang/Class;Ljava/lang/String;Landroid/os/Bundle;\)V\s+\.locals )\d+'
-            replacement_swap = r'''\1 2
-    .annotation system Ldalvik/annotation/Signature;
-        value = {
-            "(",
-            "Landroidx/fragment/app/FragmentActivity;",
-            "Ljava/lang/Class<",
-            "+",
-            "Landroidx/fragment/app/Fragment;",
-            ">;",
-            "Ljava/lang/String;",
-            "Landroid/os/Bundle;",
-            ")V"
-        }
-    .end annotation
-
+            pattern_swap = r'(\.method public static swapFragment\(Landroidx/fragment/app/FragmentActivity;Ljava/lang/Class;Ljava/lang/String;Landroid/os/Bundle;\)V\s+\.locals )\d+(\s+\.annotation system Ldalvik/annotation/Signature;.*?\.end annotation\s+)(?:[^\n]*\n)*?(\s+invoke-virtual \{p0\}, Landroidx/fragment/app/FragmentActivity;->getSupportFragmentManager\(\)Landroidx/fragment/app/FragmentManager;)'
+            replacement_swap = r'''\1 2\2
     if-eqz p1, :cond_cfl_cont
 
     invoke-virtual {p1}, Ljava/lang/Class;->getName()Ljava/lang/String;
@@ -678,8 +665,8 @@ def patch_smali_engine(decompiled_dir: Path):
 
     return-void
 
-    :cond_cfl_cont'''
-            t_content = re.sub(pattern_swap, replacement_swap, t_content)
+    :cond_cfl_cont\3'''
+            t_content = re.sub(pattern_swap, replacement_swap, t_content, flags=re.DOTALL)
             print("[OK] Tools.smali: swapFragment Auth/Login engelleyici eklendi.")
 
         tools_smali.write_text(t_content, encoding="utf-8")
